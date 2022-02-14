@@ -321,7 +321,7 @@ namespace LibreHardwareMonitor.UI
                 formattedValue = string.Format(format, Sensor.Name, UnitManager.CelsiusToFahrenheit(Sensor.Value));
             }
 
-            string hardwareName = Sensor.Hardware.Name;
+            string hardwareName = $"{Sensor.Hardware.Name} ({Sensor.SensorType})";
             hardwareName = hardwareName.Substring(0, Math.Min(63 - formattedValue.Length, hardwareName.Length));
             string text = hardwareName + formattedValue;
             if (text.Length > 63)
