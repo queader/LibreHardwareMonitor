@@ -9,6 +9,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using LibreHardwareMonitor.Hardware;
@@ -122,20 +123,72 @@ namespace LibreHardwareMonitor.UI
 
         public ISensor Sensor { get; }
 
+        private Color _baseColor;
+
         public Color Color
         {
-            get { return _color; }
+            get { return _baseColor; }
             set
             {
-                _color = value;
-                _darkColor = Color.FromArgb(255, _color.R / 3, _color.G / 3, _color.B / 3);
-                Brush brush = _brush;
-                _brush = new SolidBrush(_color);
-                brush?.Dispose();
-                Brush darkBrush = _darkBrush;
-                _darkBrush = new SolidBrush(_darkColor);
-                darkBrush?.Dispose();
+                _baseColor = value;
+                UpdateBrushes();
             }
+        }
+
+        //public Color Color
+        //{
+        //    get { return _color; }
+        //    set
+        //    {
+        //        _color = value;
+        //        _darkColor = Color.FromArgb(255, _color.R / 3, _color.G / 3, _color.B / 3);
+        //        Brush brush = _brush;
+        //        _brush = new SolidBrush(_color);
+        //        brush?.Dispose();
+        //        Brush darkBrush = _darkBrush;
+        //        _darkBrush = new SolidBrush(_darkColor);
+        //        darkBrush?.Dispose();
+        //    }
+        //}
+
+        private void UpdateBrushes()
+        {
+            var color = _baseColor;
+
+            var theme = GetWindowsTheme();
+            if (theme == Theme.Light)
+            {
+                color = Color.FromArgb(255, 255 - color.R, 255 - color.G, 255 - color.B);
+            }
+
+            _color = color;
+
+            _darkColor = Color.FromArgb(255, color.R / 3, color.G / 3, color.B / 3);
+            Brush brush = _brush;
+            _brush = new SolidBrush(color);
+            brush?.Dispose();
+            Brush darkBrush = _darkBrush;
+            _darkBrush = new SolidBrush(_darkColor);
+            darkBrush?.Dispose();
+        }
+
+        private enum Theme
+        {
+            Dark,
+            Light
+        }
+
+        private Theme GetWindowsTheme()
+        {
+            const string keyName = @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+            const string valueName = "AppsUseLightTheme";
+
+            return Microsoft.Win32.Registry.GetValue(keyName, valueName, null) as int? == 0 ? Theme.Dark : Theme.Light;
+        }
+
+        private static Color InvertColor(Color color)
+        {
+            return Color.FromArgb(255, 255 - color.R, 255 - color.G, 255 - color.B);
         }
 
         public void Dispose()
@@ -162,19 +215,19 @@ namespace LibreHardwareMonitor.UI
             switch (Sensor.SensorType)
             {
                 case SensorType.Temperature:
-                    return _unitManager.TemperatureUnit == TemperatureUnit.Fahrenheit ? $"{UnitManager.CelsiusToFahrenheit(Sensor.Value):F0}" : $"{Sensor.Value:F0}";
+                return _unitManager.TemperatureUnit == TemperatureUnit.Fahrenheit ? $"{UnitManager.CelsiusToFahrenheit(Sensor.Value):F0}" : $"{Sensor.Value:F0}";
                 case SensorType.TimeSpan:
-                    return $"{TimeSpan.FromSeconds(Sensor.Value.Value):g}";
+                return $"{TimeSpan.FromSeconds(Sensor.Value.Value):g}";
                 case SensorType.Clock:
                 case SensorType.Fan:
                 case SensorType.Flow:
-                    return $"{1e-3f * Sensor.Value:F1}";
+                return $"{1e-3f * Sensor.Value:F1}";
                 case SensorType.Voltage:
                 case SensorType.Current:
                 case SensorType.SmallData:
                 case SensorType.Factor:
                 case SensorType.Throughput:
-                    return $"{Sensor.Value:F1}";
+                return $"{Sensor.Value:F1}";
                 case SensorType.Control:
                 case SensorType.Frequency:
                 case SensorType.Level:
@@ -182,9 +235,9 @@ namespace LibreHardwareMonitor.UI
                 case SensorType.Data:
                 case SensorType.Load:
                 case SensorType.Energy:
-                    return $"{Sensor.Value:F0}";
+                return $"{Sensor.Value:F0}";
                 default:
-                    return "-";
+                return "-";
             }
         }
 
@@ -227,16 +280,18 @@ namespace LibreHardwareMonitor.UI
         {
             Icon icon = _notifyIcon.Icon;
 
+            UpdateBrushes();
+
             switch (Sensor.SensorType)
             {
                 case SensorType.Load:
                 case SensorType.Control:
                 case SensorType.Level:
-                    _notifyIcon.Icon = CreatePercentageIcon();
-                    break;
+                _notifyIcon.Icon = CreatePercentageIcon();
+                break;
                 default:
-                    _notifyIcon.Icon = CreateTransparentIcon();
-                    break;
+                _notifyIcon.Icon = CreateTransparentIcon();
+                break;
             }
 
             icon?.Destroy();
